@@ -9,6 +9,7 @@ const (
 	AlertRuleMaxTitleLength = 190
 	// Annotation key used to store the folder UID on resources
 	FolderAnnotationKey = "grafana.app/folder"
+	FolderLabelKey      = FolderAnnotationKey
 )
 
 const (
