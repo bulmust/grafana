@@ -2,32 +2,102 @@ package recordingrule
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"strconv"
+	"time"
 
 	"github.com/grafana/grafana-app-sdk/app"
+	"github.com/grafana/grafana-app-sdk/resource"
 	"github.com/grafana/grafana-app-sdk/simple"
+	model "github.com/grafana/grafana/apps/alerting/rules/pkg/apis/alerting/v0alpha1"
 	"github.com/grafana/grafana/apps/alerting/rules/pkg/app/config"
+	prom_model "github.com/prometheus/common/model"
 )
 
 func NewValidator(cfg config.RuntimeConfig) *simple.Validator {
 	return &simple.Validator{
 		ValidateFunc: func(ctx context.Context, req *app.AdmissionRequest) error {
-			// TODO: cast to specific type and implement validation
-			// validations:
-			// - check provenance status is valid
-			// if !slices.Contains(model.AcceptedProvenanceStatuses, sourceProv) {
-			// 	return nil, ngmodels.ProvenanceNone, fmt.Errorf("invalid provenance status: %s", sourceProv)
-			// }
-			// - validate group index label if group label is set
-			// - validate that group and group index labels are not set on create
-			// if p.Labels[model.GroupLabelKey] != "" || p.Labels[model.GroupIndexLabelKey] != "" {
-			// 	return nil, k8serrors.NewBadRequest("cannot set group when creating alert rule")
-			// }
-			// - validate folder is set and valid
-			// - enforce max name length (should be in the type definition?)
-			// - ValidateRuleGroupInterval
-			// - LabelsUserCannotSpecify
-			// - maybe metric name?
-			// Add custom validation logic here if needed
+			// Cast to specific type
+			r, ok := req.Object.(*model.RecordingRule)
+			if !ok {
+				return fmt.Errorf("object is not of type *v0alpha1.RecordingRule")
+			}
+
+			sourceProv := r.GetProvenanceStatus()
+			if !slices.Contains(model.AcceptedProvenanceStatuses, sourceProv) {
+				return fmt.Errorf("invalid provenance status: %s", sourceProv)
+			}
+
+			group := r.Labels[model.GroupLabelKey]
+			groupIndexStr := r.Labels[model.GroupIndexLabelKey]
+			if req.Action == resource.AdmissionActionCreate {
+				if group != "" || groupIndexStr != "" {
+					return fmt.Errorf("cannot set group when creating recording rule")
+				}
+			}
+			if group != "" {
+				if groupIndexStr == "" {
+					return fmt.Errorf("%s must be set when %s is set", model.GroupIndexLabelKey, model.GroupLabelKey)
+				}
+				if _, err := strconv.Atoi(groupIndexStr); err != nil {
+					return fmt.Errorf("invalid %s: %w", model.GroupIndexLabelKey, err)
+				}
+			}
+
+			folderUID := ""
+			if r.Annotations != nil {
+				folderUID = r.Annotations[model.FolderAnnotationKey]
+			}
+			if folderUID == "" {
+				return fmt.Errorf("folder is required")
+			}
+			if cfg.FolderValidator != nil {
+				ok, verr := cfg.FolderValidator(ctx, folderUID)
+				if verr != nil {
+					return fmt.Errorf("failed to validate folder: %w", verr)
+				}
+				if !ok {
+					return fmt.Errorf("folder does not exist: %s", folderUID)
+				}
+			}
+
+			if len(r.Spec.Title) > model.AlertRuleMaxTitleLength {
+				return fmt.Errorf("recording rule title is too long. Max length is %d", model.AlertRuleMaxTitleLength)
+			}
+
+			interval, err := prom_model.ParseDuration(string(r.Spec.Trigger.Interval))
+			if err != nil {
+				return fmt.Errorf("invalid trigger interval: %w", err)
+			}
+			if time.Duration(interval) <= 0 {
+				return fmt.Errorf("trigger interval must be greater than 0")
+			}
+			if cfg.BaseEvaluationInterval > 0 {
+				if (time.Duration(interval) % cfg.BaseEvaluationInterval) != 0 {
+					return fmt.Errorf("trigger interval must be a multiple of base evaluation interval (%s)", cfg.BaseEvaluationInterval.String())
+				}
+			}
+
+			if r.Spec.Labels != nil {
+				for key := range r.Spec.Labels {
+					if _, bad := cfg.ReservedLabelKeys[key]; bad {
+						return fmt.Errorf("label key is reserved and cannot be specified: %s", key)
+					}
+				}
+			}
+
+			if r.Spec.Metric == "" {
+				return fmt.Errorf("metric must be specified")
+			}
+			metric := prom_model.LabelValue(r.Spec.Metric)
+			if !metric.IsValid() {
+				return fmt.Errorf("metric contains invalid characters")
+			}
+			if !prom_model.IsValidMetricName(metric) { // nolint:staticcheck
+				return fmt.Errorf("invalid metric name")
+			}
+
 			return nil
 		},
 	}

@@ -17,7 +17,10 @@ import (
 
 func New(cfg app.Config) (app.App, error) {
 	managedKinds := make([]simple.AppManagedKind, 0)
-	runtimeCfg := cfg.SpecificConfig.(config.RuntimeConfig)
+	runtimeCfg, ok := cfg.SpecificConfig.(config.RuntimeConfig)
+	if !ok {
+		return nil, config.ErrInvalidRuntimeConfig
+	}
 	for _, kinds := range apis.GetKinds() {
 		for _, kind := range kinds {
 			managedKinds = append(managedKinds, simple.AppManagedKind{

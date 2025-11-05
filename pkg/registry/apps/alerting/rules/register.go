@@ -14,6 +14,7 @@ import (
 
 	"github.com/grafana/grafana/apps/alerting/rules/pkg/apis"
 	rulesApp "github.com/grafana/grafana/apps/alerting/rules/pkg/app"
+	rulesAppConfig "github.com/grafana/grafana/apps/alerting/rules/pkg/app/config"
 	grafanarest "github.com/grafana/grafana/pkg/apiserver/rest"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/registry/apps/alerting/rules/alertrule"
@@ -21,6 +22,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/apiserver/appinstaller"
 	"github.com/grafana/grafana/pkg/services/apiserver/endpoints/request"
 	"github.com/grafana/grafana/pkg/services/ngalert"
+	ngmodels "github.com/grafana/grafana/pkg/services/ngalert/models"
 	"github.com/grafana/grafana/pkg/setting"
 )
 
@@ -55,6 +57,14 @@ func RegisterAppInstaller(
 	appConfig := app.Config{
 		KubeConfig:   restclient.Config{}, // this will be overridden by the installer's InitializeApp method
 		ManifestData: *apis.LocalManifest().ManifestData,
+		SpecificConfig: rulesAppConfig.RuntimeConfig{
+			// TODO: add a folder validator function that uses ng.FolderService
+			// FolderValidator: ,
+			BaseEvaluationInterval: ng.Cfg.UnifiedAlerting.BaseInterval,
+			ReservedLabelKeys:      ngmodels.LabelsUserCannotSpecify,
+			// TODO: add a notification settings validator function that checks the notification receiver exists
+			// NotificationSettingsValidator: ,
+		},
 	}
 
 	i, err := appsdkapiserver.NewDefaultAppInstaller(provider, appConfig, &apis.GoTypeAssociator{})

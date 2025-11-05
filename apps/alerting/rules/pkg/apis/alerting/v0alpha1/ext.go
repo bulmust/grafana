@@ -5,6 +5,10 @@ const (
 	GroupLabelKey                 = InternalPrefix + "group"
 	GroupIndexLabelKey            = GroupLabelKey + "-index"
 	ProvenanceStatusAnnotationKey = InternalPrefix + "provenance"
+	// Copy of the max title length used in legacy validation path
+	AlertRuleMaxTitleLength = 190
+	// Annotation key used to store the folder UID on resources
+	FolderAnnotationKey = "grafana.app/folder"
 )
 
 const (
