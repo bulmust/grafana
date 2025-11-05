@@ -499,6 +499,9 @@ type Cfg struct {
 	// Query history
 	QueryHistoryEnabled bool
 
+	// AppRegistry settings
+	AppRegistry AppRegistrySettings
+
 	// Open feature settings
 	OpenFeature OpenFeatureSettings
 
@@ -1447,6 +1450,8 @@ func (cfg *Cfg) parseINIFile(iniFile *ini.File) error {
 	// unified storage config
 	cfg.setUnifiedStorageConfig()
 
+	// app platform config
+	cfg.readAppPlatformSection()
 	return nil
 }
 
