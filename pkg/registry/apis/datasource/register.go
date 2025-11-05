@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"path/filepath"
 
 	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,6 +60,7 @@ func RegisterAPIService(
 	contextProvider PluginContextWrapper,
 	accessControl accesscontrol.AccessControl,
 	reg prometheus.Registerer,
+	pluginSources sources.Registry,
 ) (*DataSourceAPIBuilder, error) {
 	// We want to expose just a limited set of plugins
 	//nolint:staticcheck // not yet migrated to OpenFeature
@@ -79,7 +79,7 @@ func RegisterAPIService(
 	if err != nil {
 		return nil, err
 	}
-	pluginJSONs, err := getCorePlugins(cfg)
+	pluginJSONs, err := getDatasourcePlugins(cfg, pluginSources)
 	if err != nil {
 		return nil, err
 	}
@@ -299,21 +299,18 @@ func (b *DataSourceAPIBuilder) GetOpenAPIDefinitions() openapi.GetOpenAPIDefinit
 	}
 }
 
-func getCorePlugins(cfg *setting.Cfg) ([]plugins.JSONData, error) {
-	coreDataSourcesPath := filepath.Join(cfg.StaticRootPath, "app", "plugins", "datasource")
-	coreDataSourcesSrc := sources.NewLocalSource(
-		plugins.ClassCore,
-		[]string{coreDataSourcesPath},
-	)
-
-	res, err := coreDataSourcesSrc.Discover(context.Background())
-	if err != nil {
-		return nil, errors.New("failed to load core data source plugins")
-	}
-
-	pluginJSONs := make([]plugins.JSONData, 0, len(res))
-	for _, p := range res {
-		pluginJSONs = append(pluginJSONs, p.Primary.JSONData)
+func getDatasourcePlugins(cfg *setting.Cfg, pluginSources sources.Registry) ([]plugins.JSONData, error) {
+	var pluginJSONs []plugins.JSONData
+	for _, pluginSource := range pluginSources.List(context.Background()) {
+		res, err := pluginSource.Discover(context.Background())
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+		for _, p := range res {
+			if p.Primary.JSONData.Type == plugins.TypeDataSource {
+				pluginJSONs = append(pluginJSONs, p.Primary.JSONData)
+			}
+		}
 	}
 	return pluginJSONs, nil
 }
