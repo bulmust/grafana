@@ -1,7 +1,6 @@
 package appregistry
 
 import (
-	"github.com/grafana/grafana/pkg/setting"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,6 +13,7 @@ import (
 	"github.com/grafana/grafana/pkg/registry/apps/playlist"
 	"github.com/grafana/grafana/pkg/registry/apps/plugins"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
+	"github.com/grafana/grafana/pkg/setting"
 )
 
 func TestProvideAppInstallers_Table(t *testing.T) {
