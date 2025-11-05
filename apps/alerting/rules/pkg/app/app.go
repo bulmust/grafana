@@ -23,11 +23,12 @@ func New(cfg app.Config) (app.App, error) {
 	}
 	for _, kinds := range apis.GetKinds() {
 		for _, kind := range kinds {
-			managedKinds = append(managedKinds, simple.AppManagedKind{
+			managedKind := simple.AppManagedKind{
 				Kind:      kind,
 				Validator: buildKindValidator(kind, runtimeCfg),
 				Mutator:   buildKindMutator(kind, runtimeCfg),
-			})
+			}
+			managedKinds = append(managedKinds, managedKind)
 		}
 	}
 

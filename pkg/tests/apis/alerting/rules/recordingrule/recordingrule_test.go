@@ -454,7 +454,7 @@ func TestIntegrationCRUD(t *testing.T) {
 		}
 
 		created, err := adminClient.Create(ctx, recordingRule, v1.CreateOptions{})
-		require.ErrorContains(t, err, "invalid alert rule")
+		require.ErrorContains(t, err, "trigger interval must be a multiple of base evaluation interval")
 		require.Nil(t, created)
 	})
 }
