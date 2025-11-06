@@ -114,6 +114,17 @@ func (ds *distributorServer) GetStats(ctx context.Context, r *resourcepb.Resourc
 	return client.GetStats(ctx, r)
 }
 
+func (ds *distributorServer) RebuildIndex(ctx context.Context, r *resourcepb.RebuildIndexRequest) (*resourcepb.RebuildIndexResponse, error) {
+	ctx, span := ds.tracing.Start(ctx, "distributor.RebuildIndex")
+	defer span.End()
+	ctx, client, err := ds.getClientToDistributeRequest(ctx, r.Key.Namespace, "RebuildIndex")
+	if err != nil {
+		return nil, err
+	}
+
+	return client.RebuildIndex(ctx, r)
+}
+
 func (ds *distributorServer) CountManagedObjects(ctx context.Context, r *resourcepb.CountManagedObjectsRequest) (*resourcepb.CountManagedObjectsResponse, error) {
 	ctx, span := ds.tracing.Start(ctx, "distributor.CountManagedObjects")
 	defer span.End()

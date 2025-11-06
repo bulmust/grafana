@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
 	dashboardv1 "github.com/grafana/grafana/apps/dashboard/pkg/apis/dashboard/v1beta1"
 	"github.com/grafana/grafana/pkg/storage/unified/resourcepb"
@@ -748,4 +749,53 @@ func checkRebuildIndex(t *testing.T, support *searchSupport, req rebuildRequest,
 	} else {
 		require.Nil(t, idxAfter, "index should not exist after rebuildIndex")
 	}
+}
+
+func TestRebuildIndex(t *testing.T) {
+
+	key := NamespacedResource{Namespace: "ns", Group: "group", Resource: "resource"}
+
+	// Setup mock implementations
+	storage := &mockStorageBackend{
+		resourceStats: []ResourceStats{
+			{NamespacedResource: key, Count: 50, ResourceVersion: 11111111},
+		},
+	}
+
+	search := &mockSearchBackend{
+		cache: map[NamespacedResource]ResourceIndex{
+			key: &MockResourceIndex{
+				buildInfo: IndexBuildInfo{BuildVersion: semver.MustParse("5.0.0"), BuildTime: time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)},
+			},
+		},
+	}
+	supplier := &TestDocumentBuilderSupplier{
+		GroupsResources: map[string]string{
+			"group": "resource",
+		},
+	}
+
+	opts := SearchOptions{
+		Backend:      search,
+		Resources:    supplier,
+		InitMinCount: 1,
+	}
+
+	support, err := newSearchSupport(opts, storage, nil, nil, noop.NewTracerProvider().Tracer("test"), nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, support)
+
+	idxBefore := support.search.GetIndex(key)
+	support.RebuildIndex(t.Context(), &resourcepb.RebuildIndexRequest{
+		Key: &resourcepb.ResourceKey{
+			Namespace: key.Namespace,
+			Group:     key.Group,
+			Resource:  key.Resource,
+		},
+		LastImportTime: timestamppb.New(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)),
+	})
+
+	idxAfter := support.search.GetIndex(key)
+	require.NoError(t, err)
+	require.NotSame(t, idxBefore, idxAfter, "index should be rebuilt")
 }

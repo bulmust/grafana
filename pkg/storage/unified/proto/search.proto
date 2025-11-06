@@ -4,6 +4,7 @@ package resource;
 option go_package = "github.com/grafana/grafana/pkg/storage/unified/resourcepb";
 
 import "resource.proto";
+import "google/protobuf/timestamp.proto";
 
 
 // Unlike the ResourceStore, this service can be exposed to clients directly
@@ -13,6 +14,8 @@ service ResourceIndex {
 
   // Get the resource stats
   rpc GetStats(ResourceStatsRequest) returns (ResourceStatsResponse);
+
+  rpc RebuildIndex(RebuildIndexRequest) returns (RebuildIndexResponse);
 }
 
 // Get statistics across multiple resources
@@ -138,3 +141,16 @@ message ResourceSearchResponse {
   // Facet results
   map<string,Facet> facet = 7;
 }
+
+message RebuildIndexRequest {
+  // Group+Namespace+Resource
+  ResourceKey key = 1;
+
+  google.protobuf.Timestamp last_import_time = 2;
+}
+
+message RebuildIndexResponse {
+  // Error details
+  ErrorResult error = 1;
+}
+

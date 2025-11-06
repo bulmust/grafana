@@ -112,6 +112,11 @@ func (m *MockResourceIndexClient) GetStats(ctx context.Context, in *resourcepb.R
 	return args.Get(0).(*resourcepb.ResourceStatsResponse), args.Error(1)
 }
 
+func (m *MockResourceIndexClient) RebuildIndex(ctx context.Context, in *resourcepb.RebuildIndexRequest, opts ...grpc.CallOption) (*resourcepb.RebuildIndexResponse, error) {
+	args := m.Called(ctx, in, opts)
+	return args.Get(0).(*resourcepb.RebuildIndexResponse), args.Error(1)
+}
+
 func setupTestSearchClient(t *testing.T) (schema.GroupResource, *MockResourceIndexClient, *MockResourceIndexClient, featuremgmt.FeatureToggles) {
 	t.Helper()
 	gr := schema.GroupResource{Group: "test", Resource: "items"}

@@ -459,6 +459,19 @@ func (s *searchSupport) GetStats(ctx context.Context, req *resourcepb.ResourceSt
 	return rsp, nil
 }
 
+func (s *searchSupport) RebuildIndex(ctx context.Context, req *resourcepb.RebuildIndexRequest) (*resourcepb.RebuildIndexResponse, error) {
+	rebuildReq := rebuildRequest{
+		NamespacedResource: NamespacedResource{
+			Namespace: req.Key.Namespace,
+			Group:     req.Key.Group,
+			Resource:  req.Key.Resource,
+		},
+		lastImportTime: req.LastImportTime.AsTime(),
+	}
+	s.rebuildIndex(ctx, rebuildReq)
+	return &resourcepb.RebuildIndexResponse{}, nil
+}
+
 func (s *searchSupport) buildIndexes(ctx context.Context) (int, error) {
 	totalBatchesIndexed := 0
 	group := errgroup.Group{}
